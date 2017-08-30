@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<div>
+    <table id="example"></table>
+</div>
+
+<script>
+    // load related plugins
+    loadScript("../static/framework/js/plugin/datatables/jquery.dataTables.min.js", function () {
+        loadScript("../static/framework/js/plugin/datatables/dataTables.colVis.min.js", function () {
+            loadScript("../static/framework/js/plugin/datatables/dataTables.tableTools.min.js", function () {
+                loadScript("../static/framework/js/plugin/datatables/dataTables.bootstrap.min.js", function () {
+                    loadScript("../static/framework/js/plugin/datatable-responsive/datatables.responsive.min.js", pagefunction)
+                });
+            });
+        });
+    });
+
+
+    var dataTables = null;
+
+    var dataTablesObj = null;
+
+    //编辑数据
+    function editTabRow(id) {
+
+       //编辑操作
+    }
+
+    //删除数据
+    function deleteTabRow(id) {
+        //删除操作；
+
+    }
+
+    //datables 服务器模式 前端分页请求；
+    function getColumns(type) {
+        var columns = [
+            {title: "name", data: "name", width: 60},
+            {title: "age", data: "age", width: 80},
+            {title: "sex", data: "sex", width: 60},
+            {title: "school", data: "school", width: 80},
+            {title: "company", data: "company", width: 80},
+            {title: "home", data: "home", width: 80},
+            {
+                title: "操作", data: "atx_ruuid", width: 30, render: function (data, type, row) {
+                return "<a title='编辑' style='cursor: pointer;' class='glyphicon glyphicon-edit nounderline' herf='javascript:void(0);' onclick='stopEvent();editTabRow(\"" + data + "\");'></a>&nbsp;" +
+                        "<a title='删除' style='cursor: pointer;' class='glyphicon glyphicon-trash nounderline' herf='javascript:void(0);' onclick='stopEvent();deleteTabRow(\"" + data + "\");'></a>";
+            }
+            }];
+
+        return columns;
+    }
+
+
+    //创建table；
+    function createDataTables(objid, url, type) {
+
+        //提示信息
+        var lang = {
+            "lengthMenu": "每页 _MENU_  条",
+            "processing": "处理中...",
+            "zeroRecords": "没有匹配结果",
+            "info": " 共 _TOTAL_ 条",
+            "infoEmpty": "暂无数据",
+            "infoFiltered": "", //当使用搜索功能后，表格主要信息出追加的字符
+            "loadingRecords": "加载中...",
+            "processing": "处理中...",
+            "search": "搜索:",
+            "infoPostFix": "", //追加到所有其他主要信息字符串之后
+            "url": "",
+            "emptyTable": "表中数据为空",
+            "infoThousands": ",",
+            "paginate": {
+                "first": "首页",
+                "last": "末页",
+                "next": "下一页",
+                "previous": "上一页"
+            }
+        };
+        if (dataTablesObj) {
+            dataTablesObj.destroy();
+        }
+
+        dataTables = $('#' + objid).DataTable({
+            language: lang, //提示信息
+//            stateSave: true, //状态保存，再次加载页面时还原表格状态
+            autoWidth: true, //禁用自动调整列宽
+            stripeClasses: ["odd", "even"], //为奇偶行加上样式，兼容不支持CSS伪类的场合
+            processing: true, //隐藏加载提示,自行处理
+            serverSide: true, //启用服务器端分页
+//                searching: false, //禁用原生搜索
+//            orderMulti: false, //启用多列排序
+            order: [], //取消默认排序查询,否则复选框一列会出现小箭头
+            deferRender: true, //延迟渲染可以提高Datatables的加载速度
+            lengthMenu: [
+                [10, 25, 50, 100, 300],
+                [10, 25, 50, 100, 300]
+            ], //每页多少项，第一个数组是表示的值，第二个数组用来显示
+            renderer: "bootstrap", //渲染样式：Bootstrap和jquery-ui
+            pagingType: "simple_numbers", //分页样式：simple,simple_numbers,full,full_numbers
+//                scrollY: 300, //表格的固定高
+            scrollX: true,
+            pageLength: 10, //首次加载的数据条数
+//                columnDefs: [{
+//                    targets: 'nosort', //列的样式名
+//                    orderable: false //包含上样式名‘nosort'的禁止排序
+//                }],
+            columns: getColumns(type),
+            sDom: "<'dt-toolbar'<'col-xs-12 col-sm-8 hidden-xs'><'col-xs-12 col-sm-4  text-right hidden-xs'i><'toolbar'>>" +
+            "t" +
+            "<'dt-toolbar-footer'<'col-xs-12 col-sm-2  hidden-xs'l><'col-xs-12  col-sm-10'p>>",
+
+            ajax: function (data, callback, settings) {
+//                console.log(data);
+                //封装请求参数
+                param.pagenum = data.length; //页面显示记录条数，在页面显示每页显示多少项的时候
+                param.start = data.start; //开始的记录序号
+                param.curpage = (data.start / data.length) + 1; //当前页码
+//                param.search = data.search.value;//搜索内容
+                //console.log(param);
+                //ajax请求数据
+                $.ajax({
+                    url: url,
+                    type: "GET",
+                    cache: false, //禁用缓存
+                    data: param, //传入组装的参数
+                    dataType: "json",
+                    contentType: 'application/json;charset=utf-8',
+                    beforeSend: function (request) {
+                        request.setRequestHeader("token", localStorage.token);
+                    },
+                    success: function (result) {
+                            //setTimeout仅为测试延迟效果
+                            setTimeout(function () {
+                                //封装返回数据
+                                var returnData = {};
+                                returnData.draw = data.draw; //这里直接自行返回了draw计数器,应该由后台返回
+                                returnData.recordsTotal = result.total_num; //返回数据全部记录
+                                returnData.recordsFiltered = result.total_num; //后台不实现过滤功能，每次查询均视作全部结果
+                                returnData.data = result.dbdata_list; //返回的数据列表
+                                //console.log(returnData);
+                                //调用DataTables提供的callback方法，代表数据已封装完成并传回DataTables进行渲染
+                                //此时的数据需确保正确无误，异常判断应在执行此回调前自行处理完毕
+                                callback(returnData);
+//                                console.log(returnData);
+                            }, 200);
+
+                    }
+                });
+            }
+        });
+
+
+
+        //-------------自定义滚动条部分--------------------------
+        //获取当前浏览器自带滚动条的宽度
+        function getScrollWidth() {
+            var noScroll, scroll, Div = document.createElement("div");
+            Div.style.cssText = "position:absolute; top:-1000px; width:100px; height:100px; overflow:hidden;";
+            noScroll = document.body.appendChild(Div).clientWidth;
+            Div.style.overflowY = "scroll";
+            scroll = Div.clientWidth;
+            document.body.removeChild(Div);
+            return noScroll - scroll;
+        }
+
+        //表格可视区域高度
+        var tableVisibleHeight = $('.dataTables_scrollBody').height();
+        //表格可视区域高度
+        var maxTableVisibleHeight = 500;
+        //一次滚动幅度对应的高度
+        var rollHeight = 200;
+        //表格顶部已移动到显示区域外的部分
+        var topHeight = 0;
+        //表格底部还未显示出的部分的高度
+        var elseHeight = 0;
+
+        //向上滚动时触发的函数
+        var upScrollFunc = function (e) {
+
+            //如果table的宽度小于包裹它的div的header的宽度，则此时不会出现水平滚动条。
+            if ($('.dataTables_scrollHead table').width() <= $($('header')[1]).width()) {
+                maxTableVisibleHeight = 500;
+                tableVisibleHeight = $('.dataTables_scrollBody').height();
+
+                if (tableVisibleHeight == maxTableVisibleHeight) {
+                    //如果表格的实际高度大于显示高度
+                    if ($('#example').height() > tableVisibleHeight) {
+
+                        //有水平滚动条，设置scrollbar高度减去水平滚动条width
+                        $('#scrollbar').css('height', tableVisibleHeight - 8 + 'px');
+
+                        //当滚动条高度发生变化时，或初始化滚动条高度时，设置滚动条高度
+                        $('#scrollbar').children().css('height', Math.round($('#scrollbar').height() * tableVisibleHeight / $('#example').height()) + 'px');
+
+                        if (topHeight == 0) {   //topHeight为0，说明此时没发生过向下滚动事件
+                            //为table位移做准备
+                            $('#example').css({'position': 'relative', 'top': '0px'});
+
+                            elseHeight = $('#example').height() - tableVisibleHeight;
+
+                            console.log(elseHeight);
+                            //stop停止自定义滚动条当前的动画，并slow设置滚动条透明度从0到1，完成后在2s内从1到0
+                            $('#scrollbar').stop().animate({opacity: "1"}, 'fast', function () {
+                                $('#scrollbar').stop().animate({opacity: "0"}, 'slow');
+                            });
+
+                            //设置滚动条到顶上
+                            $('#scrollbar').children().animate({'top': '0px'}, 1);
+
+                        } else if (topHeight > rollHeight) {   //之前已经发生过向下滚动事件，如果滚动的幅度大于一次位移的标准幅度
+
+                            //避免里面滚动条滚动时外面的页面也在滚动
+                            e.preventDefault();
+
+                            //topHeight-一次标准位移幅度
+                            topHeight -= rollHeight;
+
+                            //相当于top比之前+了一次标准位移幅度
+                            $('#example').css({'position': 'relative', 'top': '-' + topHeight + 'px'});
+
+                            //不可见部分高度增加一次标准位移幅度
+                            elseHeight += rollHeight;
+
+                            //滚动条top设为相应比例的位移，显示滚动条并缓缓消失
+                            $('#scrollbar').stop().animate({opacity: "1"}, 'fast', function () {
+                                $('#scrollbar').stop().animate({opacity: "0"}, 'slow');
+                            });
+                            $('#scrollbar').children().animate({'top': Math.round($('#scrollbar').height() * topHeight / $('#example').height()) + 'px'}, 1);
+
+                        } else if (topHeight <= rollHeight) {  //滚动幅度小于一次位移标准幅度，则直接归零top，topHeight，设置新的elseHeight
+
+                            //避免里面滚动条滚动时外面的页面也在滚动
+                            e.preventDefault();
+
+                            elseHeight = $('#example').height() - tableVisibleHeight;
+                            $('#example').css({'position': 'relative', 'top': '0px'});
+                            topHeight = 0;
+
+                            //直接设置滚动条top为0
+                            $('#scrollbar').stop().animate({opacity: "1"}, 'fast', function () {
+                                $('#scrollbar').stop().animate({opacity: "0"}, 'slow');
+                            });
+                            $('#scrollbar').children().animate({'top': '0px'}, 1);
+
+                        }
+
+                    }
+                } else {
+                    $('#scrollbar').css('height', '0px');
+                    $('#scrollbar').children().css({'height': '0px', 'top': '0px'});
+                }
+
+            } else if ($('.dataTables_scrollHead table').width() > $($('header')[1]).width()) {
+                //此时table已触发最小宽度设置，出现了水平滚动条，于是将滚动幅度maxTableVisibleHeight设为table外容器高度-水平滚动条width
+                maxTableVisibleHeight = 500 - getScrollWidth();
+                tableVisibleHeight = $('.dataTables_scrollBody').height() - getScrollWidth();
+
+                if (tableVisibleHeight == maxTableVisibleHeight) {
+                    if ($('#example').height() > tableVisibleHeight) {
+
+                        //有水平滚动条，设置scrollbar高度减去水平滚动条width
+                        $('#scrollbar').css('height', tableVisibleHeight - 8 + 'px');
+
+                        $('#scrollbar').children().css('height', Math.round($('#scrollbar').height() * tableVisibleHeight / $('#example').height()) + 'px');
+
+                        if (topHeight == 0) {
+                            $('#example').css({'position': 'relative', 'top': '0px'});
+
+                            elseHeight = $('#example').height() - tableVisibleHeight;
+
+                            console.log(elseHeight);
+
+                            $('#scrollbar').stop().animate({opacity: "1"}, 'fast', function () {
+                                $('#scrollbar').stop().animate({opacity: "0"}, 'slow');
+                            });
+                            $('#scrollbar').children().animate({'top': '0px'}, 1);
+
+                        } else if (topHeight > rollHeight) {
+                            e.preventDefault();
+
+                            topHeight -= rollHeight;
+                            $('#example').css({'position': 'relative', 'top': '-' + topHeight + 'px'});
+                            elseHeight += rollHeight;
+
+                            $('#scrollbar').stop().animate({opacity: "1"}, 'fast', function () {
+                                $('#scrollbar').stop().animate({opacity: "0"}, 'slow');
+                            });
+                            $('#scrollbar').children().animate({'top': Math.round((topHeight / $('#example').height()) * $('#scrollbar').height()) + 'px'}, 1);
+
+                        } else if (topHeight <= rollHeight) {
+                            e.preventDefault();
+
+                            elseHeight = $('#example').height() - tableVisibleHeight;
+                            $('#example').css({'position': 'relative', 'top': '0px'});
+                            topHeight = 0;
+
+                            $('#scrollbar').stop().animate({opacity: "1"}, 'fast', function () {
+                                $('#scrollbar').stop().animate({opacity: "0"}, 'slow');
+                            });
+                            $('#scrollbar').children().animate({'top': '0px'}, 1);
+                        }
+
+                    }
+                } else {
+                    $('#scrollbar').css('height', '0px');
+                    $('#scrollbar').children().css({'height': '0px', 'top': '0px'});
+                }
+
+            }
+        }
+
+        //向下滚动时触发的函数
+        var downScrollFunc = function (e) {
+
+            if ($('.dataTables_scrollHead table').width() <= $($('header')[1]).width()) {
+                maxTableVisibleHeight = 500;
+                tableVisibleHeight = $('.dataTables_scrollBody').height();
+
+                if (tableVisibleHeight == maxTableVisibleHeight) {
+                    //如果表格的实际高度大于可视区域高度
+                    if ($('#example').height() > tableVisibleHeight) {
+
+                        $('#scrollbar').css('height', tableVisibleHeight - 8 + 'px');
+                        //当滚动条高度发生变化时，或初始化滚动条高度时，设置滚动条高度
+                        if ($('#scrollbar').children().height() !== Math.round($('#scrollbar').height() * tableVisibleHeight / $('#example').height())) {
+                            $('#scrollbar').children().css('height', Math.round($('#scrollbar').height() * tableVisibleHeight / $('#example').height()) + 'px');
+                        }
+
+                        //初始化elseHeight,获取表格不可见部分的高度
+                        if (elseHeight == 0 && topHeight == 0) {
+                            elseHeight = $('#example').height() - tableVisibleHeight;
+                        }
+
+                        if (elseHeight == 0) {
+                            topHeight = $('#example').height() - tableVisibleHeight;
+
+                            $('#example').css({'position': 'relative', 'top': '-' + topHeight + 'px'});
+
+                            $('#scrollbar').stop().animate({opacity: "1"}, 'fast', function () {
+                                $('#scrollbar').stop().animate({opacity: "0"}, 'slow');
+                            });
+                        } else if (elseHeight > rollHeight) {
+                            e.preventDefault();
+
+                            topHeight += rollHeight;
+                            $('#example').css({'position': 'relative', 'top': '-' + topHeight + 'px'});
+                            elseHeight -= rollHeight;
+
+                            //根据当前相应的位移比例设置滚动条的top，并让滚动条显示后缓缓消失
+                            $('#scrollbar').stop().animate({opacity: "1"}, 'fast', function () {
+                                $('#scrollbar').stop().animate({opacity: "0"}, 'slow');
+                            });
+                            $('#scrollbar').children().animate({'top': Math.round((topHeight / $('#example').height()) * $('#scrollbar').height()) + 'px'}, 1);
+
+                        } else if (elseHeight <= rollHeight) { //不可见部分高度小于一次标准位移幅度
+
+                            e.preventDefault();
+
+                            //设置elseHeight为0
+                            elseHeight = 0;
+
+                            //topHeight直接设置为table整体高度-当前可见部分的高度
+                            topHeight = $('#example').height() - tableVisibleHeight;
+
+                            //用新的topHeight设置table的top
+                            $('#example').css({'position': 'relative', 'top': '-' + topHeight + 'px'});
+
+                            //设置滚动条top为（滚动条父级div-滚动条高度），并让滚动条显示后缓缓消失
+                            $('#scrollbar').stop().animate({opacity: "1"}, 'fast', function () {
+                                $('#scrollbar').stop().animate({opacity: "0"}, 'slow');
+                            });
+                            $('#scrollbar').children().animate({'top': $('#scrollbar').height() - $('#scrollbar').children().height() + 'px'}, 1);
+                        }
+
+                    }
+                } else {
+                    $('#scrollbar').css('height', '0px');
+                    $('#scrollbar').children().css({'height': '0px', 'top': '0px'});
+                }
+
+            } else if ($('.dataTables_scrollHead table').width() > $($('header')[1]).width()) {
+                //此时table已触发最小宽度设置，出现了水平滚动条，于是将滚动幅度maxTableVisibleHeight设为table外容器高度-水平滚动条width
+                maxTableVisibleHeight = 500 - getScrollWidth();
+                tableVisibleHeight = $('.dataTables_scrollBody').height() - getScrollWidth();
+
+                if (tableVisibleHeight == maxTableVisibleHeight) {
+                    if ($('#example').height() > tableVisibleHeight) {
+
+                        $('#scrollbar').css('height', tableVisibleHeight - 8 + 'px');
+                        //当滚动条高度发生变化时，或初始化滚动条高度时，设置滚动条高度
+                        $('#scrollbar').children().css('height', Math.round($('#scrollbar').height() * tableVisibleHeight / $('#example').height()) + 'px');
+
+
+                        if (elseHeight == 0 && topHeight == 0) {
+                            elseHeight = $('#example').height() - tableVisibleHeight;
+
+                        }
+
+                        if (elseHeight == 0) {
+                            topHeight = $('#example').height() - tableVisibleHeight;
+
+                            $('#example').css({'position': 'relative', 'top': '-' + topHeight + 'px'});
+
+                            $('#scrollbar').stop().animate({opacity: "1"}, 'fast', function () {
+                                $('#scrollbar').stop().animate({opacity: "0"}, 'slow');
+                            });
+                        } else if (elseHeight > rollHeight) {
+                            e.preventDefault();
+
+                            topHeight += rollHeight;
+                            $('#example').css({'position': 'relative', 'top': '-' + topHeight + 'px'});
+                            elseHeight -= rollHeight;
+
+                            $('#scrollbar').stop().animate({opacity: "1"}, function () {
+                                $('#scrollbar').stop().animate({opacity: "0"}, 'slow');
+                            });
+                            $('#scrollbar').children().animate({'top': Math.round((topHeight / $('#example').height()) * $('#scrollbar').height()) + 'px'}, 1);
+
+                        } else if (elseHeight <= rollHeight) {
+                            e.preventDefault();
+
+                            //设置elseHeight为0
+                            elseHeight = 0;
+
+                            topHeight = $('#example').height() - tableVisibleHeight;
+
+                            $('#example').css({'position': 'relative', 'top': '-' + topHeight + 'px'});
+
+                            $('#scrollbar').stop().animate({opacity: "1"}, function () {
+                                $('#scrollbar').stop().animate({opacity: "0"}, 'slow');
+                            });
+                            $('#scrollbar').children().animate({'top': $('#scrollbar').height() - $('#scrollbar').children().height() + 'px'}, 1);
+                        }
+                    }
+                } else {
+                    $('#scrollbar').css('height', '0px');
+                    $('#scrollbar').children().css({'height': '0px', 'top': '0px'});
+                }
+
+            }
+        }
+
+        //滚动方法
+        var scrollFunc = function (e) {
+
+            //浏览器兼容性适配
+            e = e || window.event;
+
+            if (e.wheelDelta) { //其他浏览器支持的属性
+
+                if (e.wheelDelta > 0) { //当滑轮向上滚动时
+                    upScrollFunc(e);
+                }
+                if (e.wheelDelta < 0) { //当滑轮向下滚动时
+                    downScrollFunc(e);
+                }
+            } else if (e.detail) {  //火狐浏览器支持的属性
+
+                if (e.detail < 0) { //当滑轮向上滚动时
+                    upScrollFunc(e);
+                }
+                if (e.detail > 0) { //当滑轮向下滚动时
+                    downScrollFunc(e);
+                }
+            }
+        }
+
+        //绑定滚动方法
+        if ($('#example')[0].addEventListener) {
+            //非firefox
+            $('#example')[0].addEventListener('mousewheel', scrollFunc, false);
+
+            //firefox
+            $('#example')[0].addEventListener('DOMMouseScroll', scrollFunc, false);
+        }
+
+        //表格resize事件
+        $('#example').resize(function () {
+
+            //如果不settimeout，resize后(首次)可能会出现滚动条错位的现象，原因是取得th的高不对
+            setTimeout(function () {
+                $('#scrollbar').css('top', $('.dt-toolbar').outerHeight() + $('.dataTables_scrollHead').outerHeight() + 'px');
+            }, 10);
+
+            if ($('.dataTables_scrollHead table').width() > $($('header')[1]).width()) {
+                maxTableVisibleHeight = 500 - getScrollWidth();
+                tableVisibleHeight = $('.dataTables_scrollBody').height() - getScrollWidth();
+            } else {
+                maxTableVisibleHeight = 500;
+                tableVisibleHeight = $('.dataTables_scrollBody').height();
+            }
+
+            if (tableVisibleHeight == maxTableVisibleHeight) {
+                //如果table高度发生变化
+                if ($('#example').height() !== $('.dataTables_scrollBody').data('#example_height')) {
+                    //计算对应之前比例的新topHeight
+                    topHeight *= $('#example').height() / $('.dataTables_scrollBody').data('#example_height');
+
+                    $('#scrollbar').css('height', tableVisibleHeight - 8 + 'px');
+
+                    $('#scrollbar').children().css('height', Math.round($('#scrollbar').height() * tableVisibleHeight / $('#example').height()) + 'px');
+                }
+            } else {
+                topHeight = 0;
+                $('#scrollbar').css('height', '0px');
+                $('#scrollbar').children().css({'height': '0px', 'top': '0px'});
+            }
+            //如果底部出现了空白
+            if (topHeight + tableVisibleHeight > $('#example').height()) {
+                //滚动条移动到底部
+                topHeight = $('#example').height() - tableVisibleHeight;
+            }
+            elseHeight = $('#example').height() - topHeight - tableVisibleHeight;
+            $('#example').css({'position': 'relative', 'top': '-' + topHeight + 'px'});
+
+            //设置当前table高度为新data数据
+            $('.dataTables_scrollBody').data('#example_height', $('#example').height());
+
+
+        });
+
+
+//-----------------滚动条拖动-----------------
+        //记录滚动条区域mousedown事件时鼠标滚轮的top
+        var topPlace = 0;
+        //记录滚动条区域mousedown事件时鼠标的点击处的pageY
+        var topPointY = 0;
+
+        //鼠标在滚动条范围时，鼠标slow完全不透明
+        $('#scrollbar').children().mouseover(function () {
+            $('#scrollbar').stop().animate({opacity: "1"}, 'fast');
+        });
+
+        //鼠标移出滚动条范围时，鼠标slow完全透明
+        $('#scrollbar').children().mouseleave(function () {
+            $('#scrollbar').stop().animate({opacity: "0"}, "slow");
+        });
+
+        //滚动条区域mousedown事件
+        $('#scrollbar').children().mousedown(function (event) {
+            topPlace = $('#scrollbar').children().css('top');
+            topPlace = parseInt(topPlace.substr(0, topPlace.length - 2));
+            topPointY = event.pageY;
+            return false;
+        });
+
+        //滚动条区域mousemove事件，表格区域mousemove事件
+        $('#scrollbar').children().mousemove(function (event) {
+            event = event || window.event;
+
+            //神坑，firefox中event.which不点鼠标和点鼠标左键都是1，幸亏还有event.buttons
+            if (event.buttons == 1) {
+
+                var newPlace = topPlace + event.pageY - topPointY;
+                var ceilLimit = $('#scrollbar').height() - $('#scrollbar').children().height();
+
+                if (newPlace > 0 && newPlace < ceilLimit) {
+                    $('#scrollbar').children().css('top', newPlace + 'px');
+                    topHeight = newPlace / $('#scrollbar').height() * $('#example').height();
+                    elseHeight = $('#example').height() - topHeight - maxTableVisibleHeight;
+                    $('#example').css({'position': 'relative', 'top': '-' + topHeight + 'px'});
+                } else if (newPlace <= 0) {
+                    $('#scrollbar').children().css('top', '0px');
+                    topHeight = 0;
+                    elseHeight = $('#example').height() - maxTableVisibleHeight;
+                    $('#example').css({'position': 'relative', 'top': '0px'});
+                } else if (newPlace >= ceilLimit) {
+                    $('#scrollbar').children().css('top', ceilLimit + 'px');
+                    topHeight = $('#example').height() - maxTableVisibleHeight;
+                    elseHeight = 0;
+                    $('#example').css({
+                        'position': 'relative',
+                        'top': '-' + ($('#example').height() - maxTableVisibleHeight) + 'px'
+                    });
+                }
+
+            }
+        });
+
+        $('.dataTables_scrollBody').mousemove(function (event) {
+
+            event = event || window.event;
+
+            //如果鼠标移动的时候还按着鼠标左键
+            if (event.buttons == 1 && topPointY) {
+                $('#scrollbar').stop().css({'opacity': '1'});
+                //滚动条将要位移到的新位置，以top为定义
+                var newPlace = topPlace + event.pageY - topPointY;
+                //newplace的天花板，最大位移不能超过天花板
+                var ceilLimit = $('#scrollbar').height() - $('#scrollbar').children().height();
+
+                //如果位移后newplace在top取值范围内
+                if (newPlace > 0 && newPlace < ceilLimit) {
+                    $('#scrollbar').children().css('top', newPlace + 'px');
+                    topHeight = newPlace / $('#scrollbar').height() * $('#example').height();
+                    elseHeight = $('#example').height() - topHeight - maxTableVisibleHeight;
+                    $('#example').css({'position': 'relative', 'top': '-' + topHeight + 'px'});
+                } else if (newPlace <= 0) {  //newplace超出顶部
+                    $('#scrollbar').children().css('top', '0px');
+                    topHeight = 0;
+                    elseHeight = $('#example').height() - maxTableVisibleHeight;
+                    $('#example').css({'position': 'relative', 'top': '0px'});
+                } else if (newPlace >= ceilLimit) {  //newplace超出底部
+                    $('#scrollbar').children().css('top', ceilLimit + 'px');
+                    topHeight = $('#example').height() - maxTableVisibleHeight;
+                    elseHeight = 0;
+                    $('#example').css({
+                        'position': 'relative',
+                        'top': '-' + ($('#example').height() - maxTableVisibleHeight) + 'px'
+                    });
+                }
+            }
+        });
+
+        //页面内mouseup事件
+        $('body').mouseup(function () {
+            topPlace = 0;
+            topPointY = 0;
+            $('#scrollbar').stop().animate({opacity: "0"}, "slow");
+        });
+
+        //页面内mouseLeave事件
+        $('body').mouseleave(function () {
+            $('#scrollbar').stop().animate({opacity: "0"}, "slow");
+        });
+
+//--------------滚动条拖动部分完---------------------
+
+        //dataTables的draw事件，重绘时触发,包括初次载入和页面改变等情况
+        dataTables.on('draw.dt', function () {
+            //搜索head样式；
+            $(".dataTables_info").css('padding-bottom','5px')
+
+            //初始化时设置由scorllX:ture产生的dataTables_scrollBody类的css
+            // 必须要在这里设，不然可能让该类的内容溢出了再设置回500px，这之间就会导致某些判断错误
+            $('.dataTables_scrollBody').css({
+                'max-height': '500px',
+                'overflow': 'hidden'
+            });
+
+            $('#scrollbar').css('top', $('.dt-toolbar').outerHeight() + $('th').outerHeight() + 'px');
+
+            $('.dt-toolbar').height('32');
+
+            //给所有td加上折行样式
+            $('td').css({'word-break': 'break-all', 'word-wrap': 'break-word'});
+
+            if ($('td').length == 1) {
+                $('td').attr('colspan', $('.dataTables_scrollHead table').find('th').length);
+            }
+//            //datatables的columns定义的宽度数组
+//            var len=[60,80,60,80,80,80,80,80,60,60,60,60,60,60,30];
+//
+//            //dataTables的表格的最小宽度
+//            var table_min_length=0;
+//            for(i=0;i<len.length;i++){
+//                //累加给最小宽度当前column的设定宽度和左右padding合计27
+//                table_min_length+=len[i]+27;
+//            }
+//            //column之间的border
+//            table_min_length+=len.length-1;
+//
+//            function changeTableWidth() {
+//
+//                //检测widget的宽度，根据此宽度来改变table的宽度
+//                var headerWidth = $($('header')[1]).width();
+//
+//                if (headerWidth <= table_min_length) {
+//                    $('.dataTables_scrollHead table').width(table_min_length);
+//                    $('.dataTables_scrollBody table').width(table_min_length);
+//                } else {
+//                    $('.dataTables_scrollHead table').width(headerWidth);
+//                    $('.dataTables_scrollBody table').width(headerWidth);
+//                }
+//                //当表格不为空时
+//                if ($('td').length > 1) {
+//                    //当第一行第一列的宽度和第一列表头的宽度对不上时（7是th和td的padding的差），或者是当第一行第一列的宽度小于设定的最小宽度（即前面的差+设置给表头的len[0]）时
+//                    if ($($('td')[0]).width() - 7 !== $($('th')[0]).width() || $($('td')[0]).width() < 67) {
+//                        //获取此时第一行第一列单元格的width
+//                        var diff = $($('td')[0]).width();
+//                        //最后再给单元格一个机会改回设定的width
+//                        var bodyArr = $('.dataTables_scrollBody table').find('tr');
+//                        for (var i = 1; i < bodyArr.length; i++) {
+//                            for (var j = 0; j < len.length; j++) {
+//                                $($(bodyArr[i]).find('td')[j]).css('width', len[j] + 7);
+//                            }
+//                        }
+//
+//                        //如果小于设置的最小width，或者小于等于之前它的width
+//                        if ($($('td')[0]).width() < 67 || $($('td')[0]).width() <= diff) {
+//                            //定义一个空数组，用来记录此时第一行的各个单元格的宽度。
+//                            var len2 = [];
+//                            for (var i = 0; i < len.length; i++) {
+//                                len2.push($($('td')[i]).width());
+//                            }
+//                            //console.log(len2);
+//                            //把表头各个单元格的宽度设置为第一行的相应宽度
+//                            var headArr = $('.dataTables_scrollHead table').find('th');
+//                            for (var i = 0; i < headArr.length; i++) {
+//                                $(headArr[i]).css('width', len2[i] - 7);
+//                            }
+//                        }
+//
+//                    }
+//                }
+//
+//            }
+//
+//            changeTableWidth();
+//
+            $('footer').css('z-index', '-1');
+            $('[role="content"]').show();
+            $('#search_tab').show()
+//
+//
+//            $('.widget-body').resize(changeTableWidth);
+//
+//            //定义表格的单元格应有的理想宽度
+//            var headArr = $('.dataTables_scrollHead table').find('th');
+//            for (var i = 0; i < headArr.length; i++) {
+//                $(headArr[i]).css('width', len[i]);
+//            }
+//            var bodyArr = $('.dataTables_scrollBody table').find('tr');
+//            if ($('td').length > 1) {
+//                for (var i = 1; i < bodyArr.length; i++) {
+//                    for (var j = 0; j < len.length; j++) {
+//                        $($(bodyArr[i]).find('td')[j]).css('width', len[j] + 7);
+//                    }
+//                }
+//            } else if ($('td').length == 1) {
+//                $('td').attr('colspan', len.length);
+//            }
+//
+
+            //重绘时清空height数据，调整滚动条和table的top都到顶部
+            topHeight = 0;
+            elseHeight = 0;
+            $('#scrollbar').children().css('top', '0px');
+            $('#example').css({'position': 'relative', 'top': '0px'});
+
+            if ($('.dataTables_scrollHead table').width() <= $($('header')[1]).width()) {  //如果table的宽度小于包裹它的div的header的宽度，则此时不会出现水平滚动条。
+                maxTableVisibleHeight = 500;
+                tableVisibleHeight = $('.dataTables_scrollBody').height();
+            } else {  //出现水平滚动条，减去相应的滚动条width
+                maxTableVisibleHeight = 500 - getScrollWidth();
+
+                tableVisibleHeight = $('.dataTables_scrollBody').height() - getScrollWidth();
+
+            }
+
+            if (tableVisibleHeight < maxTableVisibleHeight) {   //如果表格高度还达不到最大高度
+                $('#scrollbar').css('height', '0px');
+                $('#scrollbar').children().css({'height': '0px', 'top': '0px'});
+            } else {
+                $('#scrollbar').css('height', tableVisibleHeight - 8 + 'px');
+
+                $('#scrollbar').children().css('height', Math.round($('#scrollbar').height() * tableVisibleHeight / $('#example').height()) + 'px');
+
+            }
+
+            //在每次重绘时时记录table的实际高度
+            $('.dataTables_scrollBody').data('#example_height', $('#example').height());
+
+        });
+
+
+        return dataTables;
+    }
+
+    (function () {
+
+        var url = "../user"
+
+        dataTablesObj = createDataTables('example', url, 'v_1');
+    })();
+
+</script>
+</body>
+</html>
